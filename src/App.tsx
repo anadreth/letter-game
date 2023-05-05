@@ -1,144 +1,56 @@
+import { Alert, Box, styled } from "@mui/material";
+import Playground from "./components/Playground/Playground";
 import { useEffect, useState } from "react";
-import {
-  getComplementaryColor,
-  getRandomColor,
-  getRandomLetter,
-  getRandomNumber,
-} from "./utils/getRandom";
-import { Alert, Typography, keyframes, styled } from "@mui/material";
+import { LetterType } from "./components/Letter/Letter";
+import { getRandomNumber } from "./utils/getRandom";
+import Stats from "./components/Stats/Stats";
+import { DifficultyEnum } from "./utils/setDifficulty";
+import { setDifficultyAndSpeed } from "./utils/setDifficulty";
+import { createLetter } from "./utils/createLetter";
 
-type LetterType = {
-  id: number;
-  width: number;
-  height: number;
-  top: number;
-  left: number;
-  fallingSpeed: number;
-  atTheBottom: boolean;
-  color: string;
-  backgroundColor: string;
-  label: string;
-  isVisible: boolean;
-  setAtTheBottom: (value: boolean) => void;
-  setIsVisible: (value: boolean) => void;
-};
-
-interface LetterBoxProps {
-  width: number;
-  height: number;
-  color: string;
-  backgroundColor: string;
-  top: number;
-  left: number;
-  fallingSpeed: number;
-  isAnimating: boolean;
-  isVisible: boolean;
-}
-
-const slideIn = keyframes({
-  to: {
-    top: "500px",
-  },
-});
-
-const LetterBox = styled("div")<LetterBoxProps>(
-  ({
-    width,
-    height,
-    color,
-    backgroundColor,
-    top,
-    left,
-    fallingSpeed,
-    isAnimating,
-  }) => ({
-    width,
-    height,
-    color,
-    backgroundColor,
-    top,
-    left,
-    position: "absolute",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    animation: `${slideIn} ${fallingSpeed}s linear forwards${
-      isAnimating ? "" : " paused"
-    }`,
-  })
-);
-
-const StyledWrapper = styled("div")({
+const StyledWrapper = styled(Box)(({ theme }) => ({
   width: "100%",
   height: "100vh",
-});
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  flexDirection: "column",
+  backgroundColor: theme.palette.gray.main,
+}));
 
-const Playground = styled("div")({
-  height: 500,
-  width: 1000,
-  position: "relative",
-  backgroundColor: "white",
-});
-
-const BoldText = styled(Typography)({
-  fontWeight: "bold",
+const AlertBox = styled(Box)({
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  display: "flex",
+  justifyContent: "space-around",
+  alignItems: "center",
 });
 
 function App() {
-  const [start, setStart] = useState(false);
-  const [time, setTime] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [start, setStart] = useState<boolean>(true);
+  const [isAnimating, setIsAnimating] = useState<boolean>(true);
+  const [lost, setLost] = useState<boolean>(false);
+
+  const [score, setScore] = useState<number>(0);
+  const [time, setTime] = useState<number>(0);
+  const [id, setId] = useState<number>(1);
+  const [speedMax, setSpeedMax] = useState<number>(10);
+  const [speedMin, setSpeedMin] = useState<number>(10);
+  const [areAtTheBottom, setAreAtTheBottom] = useState<number>(0);
+
+  const [difficulty, setDifficulty] = useState<DifficultyEnum>(
+    DifficultyEnum.NOOB
+  );
 
   const [letters, setLetters] = useState<LetterType[]>([]);
-  const [score, setScore] = useState(0);
-  const [id, setId] = useState(1);
-
-  const [areAtTheBottom, setAreAtTheBottom] = useState<number>(0);
-  const [lost, setLost] = useState(false);
 
   useEffect(() => {
-    const createLetter = () => {
-      const color = getRandomColor();
-      const complementaryColor = getComplementaryColor(color);
+    const newLetter = createLetter({ id, speedMax, speedMin, setLetters });
 
-      const letter = {
-        id: id,
-        width: getRandomNumber(30, 80),
-        height: getRandomNumber(30, 80),
-        top: getRandomNumber(50, 200),
-        left: getRandomNumber(100, 900),
-        fallingSpeed: getRandomNumber(1, 10),
-        atTheBottom: false,
-        color: color,
-        backgroundColor: complementaryColor,
-        label: getRandomLetter(),
-        zIndex: id + 1,
-        isVisible: true,
-        setAtTheBottom: (value: boolean) => {
-          setLetters((prevLetters) =>
-            prevLetters.map((prevLetter) =>
-              prevLetter.id === letter.id
-                ? { ...prevLetter, atTheBottom: value }
-                : prevLetter
-            )
-          );
-        },
-        setIsVisible: (value: boolean) => {
-          setLetters((prevLetters) =>
-            prevLetters.map((prevLetter) =>
-              prevLetter.id === letter.id
-                ? { ...prevLetter, visible: value }
-                : prevLetter
-            )
-          );
-        },
-      };
-      return letter;
-    };
     if (areAtTheBottom === 20) {
       setStart(false);
-      setScore(0);
-      setTime(0);
       setLetters([]);
       setId(1);
       setAreAtTheBottom(0);
@@ -148,30 +60,17 @@ function App() {
 
     if (start && areAtTheBottom < 20) {
       const interval = setInterval(() => {
-        setLetters((prevLetters) => [...prevLetters, createLetter()]);
+        setLetters((prevLetters) => [...prevLetters, newLetter]);
         setId((prevId) => prevId + 1);
-      }, getRandomNumber(100, 1000));
+      }, getRandomNumber(speedMin * 10, speedMax * 100));
       return () => clearInterval(interval);
     }
-  }, [letters, start, id, areAtTheBottom]);
-
-  useEffect(() => {
-    if (start) {
-      const intervalId = setInterval(() => {
-        setTime((prevTime) => prevTime + 1);
-      }, 1000);
-      return () => {
-        clearInterval(intervalId);
-      };
-    }
-  }, [start]);
+  }, [areAtTheBottom, id, speedMax, speedMin, start]);
 
   useEffect(() => {
     if (start) {
       const handlePressKey = (event: KeyboardEvent) => {
-        console.log("Pressed key:");
         const key = event.key.toLocaleUpperCase();
-
         const count = letters.reduce((acc, letter) => {
           if (letter.label === key && !letter.atTheBottom) {
             return acc + 1;
@@ -200,51 +99,58 @@ function App() {
     }
   }, [letters, start]);
 
+  useEffect(() => {
+    if (start) {
+      setDifficultyAndSpeed({ time, setDifficulty, setSpeedMin, setSpeedMax });
+
+      const intervalId = setInterval(() => {
+        setTime((prevTime) => prevTime + 1);
+      }, 1000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [start, time]);
+
   const handleStart = () => {
-    setLost(false);
-    setAreAtTheBottom(0);
+    if (lost) {
+      setScore(0);
+      setAreAtTheBottom(0);
+      setTime(0);
+    }
     setStart((prevStart) => !prevStart);
     setIsAnimating((prevIsAnimating) => !prevIsAnimating);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    console.log(event.key);
+    setLost(false);
   };
 
   const handleAnimationEnd = (letter: LetterType) => {
     letter.setAtTheBottom(true);
     setAreAtTheBottom((prevAreAtTheBottom) => prevAreAtTheBottom + 1);
   };
+
   return (
     <StyledWrapper>
-      <div>
-        <button onClick={handleStart}>{start ? "pause" : "start"}</button>
-        <p>{letters.length}</p>
-        <p>{score}</p>
-        <p>{time + " " + "seconds"}</p>
-        <p>{areAtTheBottom + "/20 to loose"}</p>
-      </div>
-      <Playground>
-        {letters.map((letter) => (
-          <LetterBox
-            key={letter.id}
-            width={letter.width}
-            height={letter.height}
-            color={letter.color}
-            backgroundColor={letter.backgroundColor}
-            top={letter.top}
-            left={letter.left}
-            fallingSpeed={letter.fallingSpeed}
-            isVisible={letter.isVisible}
-            isAnimating={isAnimating}
-            onAnimationEnd={() => handleAnimationEnd(letter)}
-            onKeyDown={handleKeyDown}
-          >
-            <BoldText>{letter.label}</BoldText>
-          </LetterBox>
-        ))}
-      </Playground>
-      {lost && <Alert severity="error">You lost!</Alert>}
+      {lost && (
+        <AlertBox>
+          <Alert severity="error">{`I am sorry, ooo mighty ${difficulty}, but you died. Maybe try again in next life?`}</Alert>
+          <Alert severity="info">{`You slashed ${score} letters.`}</Alert>
+        </AlertBox>
+      )}
+      <Stats
+        start={start}
+        lost={lost}
+        handleStart={handleStart}
+        score={score}
+        time={time}
+        areAtTheBottom={areAtTheBottom}
+        difficulty={difficulty}
+      />
+      <Playground
+        letters={letters}
+        isAnimating={isAnimating}
+        handleAnimationEnd={handleAnimationEnd}
+      />
     </StyledWrapper>
   );
 }

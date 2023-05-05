@@ -1,0 +1,1 @@
+export const LIVES_NUMBER = 20
